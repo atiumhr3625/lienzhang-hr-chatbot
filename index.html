@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>리엔장 병원 HR 도우미</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --teal:#0d9488;--teal2:#0f766e;--teal-light:#ccfbf1;--teal-bg:#f0fdfa;
+  --bg:#f0fdfa;--border:#99f6e4;--text:#134e4a;--surface:#fff;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Pretendard,sans-serif;background:var(--bg);min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:24px 20px;}
+
+#chatbot{display:flex;flex-direction:column;height:740px;width:660px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--surface);box-shadow:0 8px 32px rgba(13,148,136,0.1);}
+#hdr{padding:14px 18px;background:linear-gradient(135deg,#0d9488 0%,#0284c7 100%);display:flex;align-items:center;gap:12px;flex-shrink:0;}
+#hdr-icon{width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+#hdr-info{flex:1;}
+#hdr-title{font-size:15px;font-weight:700;color:#fff;}
+#hdr-sub{font-size:11.5px;color:rgba(255,255,255,0.75);margin-top:2px;}
+#hdr-sync{padding:5px 11px;border:1px solid rgba(255,255,255,0.35);border-radius:7px;background:rgba(255,255,255,0.12);color:#fff;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;flex-shrink:0;transition:background 0.15s;}
+#hdr-sync:hover{background:rgba(255,255,255,0.22);}
+#hdr-sync.syncing{opacity:0.7;cursor:not-allowed;}
+
+#msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;}
+.msg-bot{display:flex;gap:9px;align-items:flex-start;}
+.bot-av{width:30px;height:30px;border-radius:50%;background:var(--teal-light);color:var(--teal2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;margin-top:2px;}
+.bot-bbl{background:var(--teal-bg);border:1px solid var(--border);border-radius:0 12px 12px 12px;padding:11px 15px;font-size:13.5px;color:var(--text);line-height:1.65;max-width:88%;}
+.msg-user{display:flex;justify-content:flex-end;}
+.user-bbl{background:var(--teal);color:#fff;border-radius:12px 0 12px 12px;padding:10px 15px;font-size:13.5px;line-height:1.6;max-width:80%;}
+.widget{padding-left:39px;}
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:4px 0;}
+.cat-btn{padding:10px 13px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-size:13px;color:var(--text);text-align:left;transition:all 0.15s;display:flex;align-items:center;gap:7px;font-weight:500;}
+.cat-btn:hover{background:var(--teal-light);border-color:var(--teal);color:var(--teal2);}
+.q-list{display:flex;flex-direction:column;gap:7px;padding:4px 0;}
+.q-btn{padding:9px 13px;border:1px solid var(--border);border-radius:9px;background:#fff;cursor:pointer;font-size:13px;color:var(--text);text-align:left;transition:all 0.15s;line-height:1.45;}
+.q-btn:hover{background:var(--teal-light);border-color:var(--teal);}
+.nav-btns{display:flex;gap:7px;margin-top:2px;}
+.back-btn{padding:6px 13px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:12px;color:#64748b;display:inline-flex;align-items:center;gap:4px;}
+.back-btn:hover{background:#f1f5f9;}
+.answer-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 15px;font-size:13.5px;color:#14532d;line-height:1.75;}
+.info-box{background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:9px 13px;font-size:12px;color:#78350f;margin-top:7px;line-height:1.6;}
+.loading-dots{display:flex;gap:5px;align-items:center;padding:4px 0;}
+.loading-dots span{width:8px;height:8px;background:var(--teal);border-radius:50%;animation:bounce 1.2s infinite;}
+.loading-dots span:nth-child(2){animation-delay:.2s;}
+.loading-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes bounce{0%,80%,100%{transform:scale(0.8);opacity:0.5;}40%{transform:scale(1.1);opacity:1;}}
+@keyframes spin{to{transform:rotate(360deg);}}
+.spinner-inline{width:12px;height:12px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;}
+#err-banner{display:none;background:#fef2f2;border-bottom:1px solid #fecaca;padding:9px 16px;font-size:12px;color:#991b1b;align-items:center;gap:8px;flex-shrink:0;}
+#err-banner.show{display:flex;}
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(60px);z-index:9999;background:#1e293b;color:#fff;padding:11px 22px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.2);opacity:0;transition:all 0.3s;pointer-events:none;white-space:nowrap;}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+</style>
+</head>
+<body>
+<div id="chatbot">
+  <div id="hdr">
+    <div id="hdr-icon">🏥</div>
+    <div id="hdr-info">
+      <div id="hdr-title">리엔장 병원 HR 도우미</div>
+      <div id="hdr-sub">임직원 문의 응대 시스템 · 리엔장 전용</div>
+    </div>
+    <button id="hdr-sync" onclick="manualSync()" title="데이터 새로고침">🔄 새로고침</button>
+  </div>
+  <div id="err-banner"><span id="err-msg"></span></div>
+  <div id="msgs"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// ★ 구글 시트 CSV URL — 여기만 바꾸면 됩니다 ★
+// 구글 시트 → 파일 → 공유 → 웹에 게시 → CSV → 링크 복사
+// ════════════════════════════════════════════════════════
+const SHEET_CSV_URL = 'YOUR_GOOGLE_SHEET_CSV_URL_HERE';
+
+// ── 아이콘 매핑 ──
+const ICON_MAP = {
+  '급여':'💰','임금':'💰','휴가':'🌴','휴일':'🌴','경조':'🌴',
+  '복리':'🎁','후생':'🎁','기타':'📋','결재':'📋','근무':'⏰','근태':'⏰',
+  '입사':'🚪','퇴사':'🚪','입퇴':'🚪','출장':'✈️','사우회':'🤝',
+  '승진':'⬆️','인사':'⬆️','IT':'💻','비품':'💻',
+};
+function getIcon(label){
+  for(const [k,v] of Object.entries(ICON_MAP)){ if(label.includes(k)) return v; }
+  return '📌';
+}
+
+// ── 기본 데이터 (구글 시트 로드 실패 시 폴백) ──
+let DATA = {
+  cats:[
+    { id:'급여', icon:'💰', label:'급여', subs:[
+      { label:'급여 지급', qs:[
+        {q:'급여일이 언제예요?', a:'매월 1일~말일 급여가 다음 달 5일에 지급됩니다.\n5일이 휴일이면 전일 지급합니다.', info:''},
+        {q:'입사일이 1일이 아니면 급여가 어떻게 계산되나요?', a:'근무한 일수만큼 일할 계산하여 지급됩니다.\n예) 4월 14일 입사 = 14~30일 총 17일분 지급', info:''},
+        {q:'점심 식대가 따로 나오나요?', a:'비과세 식대 200,000원이 지급됩니다(계약 연봉에 포함)', info:''},
+      ]},
+      { label:'4대 보험', qs:[
+        {q:'입사 후 건강보험 고지서를 받았어요', a:'1일 입사자가 아닌 경우 입사 당월에는 건강보험료를 급여에서 공제하지 않습니다.\n입사 당월은 지역가입자로 보험료가 부과되기 때문입니다.\n미공제분은 퇴사 시 또는 다음 해 4월에 재정산됩니다.', info:''},
+        {q:'출산휴가·육아휴직 중 4대보험은 어떻게 되나요?', a:'[출산휴가 기간]\n• 국민연금, 고용보험, 산재보험 → 유예\n• 건강보험 → 정상 납부\n\n[육아휴직 기간]\n• 모든 4대보험 → 전부 유예\n\n※ 유예 기간 중 정산분이 발생할 수 있으며, 복직 후 일괄 정산될 수 있습니다.', info:'담당자: HR팀 이지현 주임'},
+        {q:'입사 시 4대보험 공제는 언제부터 되나요?', a:'• 1일 입사자: 당월분 공제 대상\n• 1일 이후 입사자: 당월분 미공제 (익월부터 공제)', info:''},
+        {q:'건강보험 피부양자 등록은 어떻게 하나요?', a:'자격 조건 확인 후 가족관계증명서 상세(주민등록번호 뒷자리 공개)를 인사팀에 제출합니다.', info:'문의: 인사팀'},
+      ]},
+      { label:'인센티브', qs:[
+        {q:'인센티브 지급일은 언제예요?', a:'매월 15일\n15일이 휴일이면 다음날에 지급', info:''},
+      ]},
+    ]},
+    { id:'휴가·휴일', icon:'🌴', label:'휴가·휴일', subs:[
+      { label:'연차 발생·사용', qs:[
+        {q:'연차는 어떻게 발생하나요?', a:'• 1년 미만: 1달 만근 시 1개 (최대 11개, 수습기간 사용 가능)\n• 1년 이상: 15개, 이후 2년마다 1개 추가 (최대 25개)\n\n[입사월별 발생 개수]\n1월 11개 / 2월 10개 / 3월 9개 / 4월 8개 / 5월 7개 / 6월 6개\n7월 5개 / 8월 4개 / 9월 3개 / 10월 2개 / 11월 1개 / 12월 0개', info:''},
+        {q:'올해 연차를 다 쓰면 내년 연차를 당겨 쓸 수 있나요?', a:'내년도 연차 선사용은 불가합니다.\n\n연차를 모두 소진하신 경우, 무급휴가를 HR팀 및 해당 부서장 승인 후 사용하실 수 있습니다.\n무급휴가 사용 시 해당 일수만큼 급여에서 공제됩니다.', info:''},
+        {q:'연차 이월이 가능한가요?', a:'리엔장 의원은 연차촉진제를 시행하고 있어 이월이 불가능합니다.\n당해 소진이 원칙이며 미사용 시 소멸될 수 있습니다.\n• 1년 미만자: 다음 연도로 이월 가능\n• 1년 이상자: 연말 소멸', info:''},
+        {q:'퇴사 시 미사용 연차는 보상받을 수 있나요?', a:'네, 퇴사 시 잔여 연차에 대해서는 연차수당으로 정산받으실 수 있습니다.', info:''},
+      ]},
+      { label:'공휴일 근무', qs:[
+        {q:'법정공휴일에도 근무하나요?', a:'병원 특성상 공휴일에도 근무할 수 있습니다.\n원내 스케줄에 따라 근무자가 결정됩니다.', info:'공휴일 근무 시: 1.5개 대체휴가 또는 1.5배 휴일근무수당 선택'},
+      ]},
+      { label:'경조 휴가', qs:[
+        {q:'아버지(부모) 사망 시 경조 휴가는?', a:'[회사]\n• 경조 휴가: 5일 (발생일로부터 휴일 포함 산정)\n• 경조금: 30만원\n• 화환 지원\n\n사후 1개월 이내 결재\n증빙서류: 사망진단서 또는 주민등록등본, 모바일 부고장', info:''},
+        {q:'본인 결혼 시 경조 휴가는?', a:'[회사]\n• 경조 휴가: 5일 (발생일로부터 휴일 포함 산정)\n• 경조금: 근속 6개월~1년 30만원 / 1년 이상 50만원\n• 화환 지원\n\n2주 전 결재\n구비서류: 청첩장', info:''},
+        {q:'배우자 사망 시 경조 휴가는?', a:'[회사]\n• 경조 휴가: 5일 (발생일로부터 휴일 포함 산정)\n• 경조금: 100만원\n• 화환 지원\n\n사후 1개월 이내 결재', info:''},
+        {q:'경조비가 중복으로 지급되나요?', a:'경조비는 중복 지급되지 않습니다.', info:''},
+        {q:'경조 휴가는 어떻게 신청하나요?', a:'비즈메카 전자결재에서 양식 <경조사 신청> 작성하여 기안', info:''},
+      ]},
+    ]},
+    { id:'복리후생', icon:'🎁', label:'복리후생', subs:[
+      { label:'기본 혜택', qs:[
+        {q:'기본 복리후생이 어떻게 되나요?', a:'• 점심: 구내식당(강남점만) 또는 식대 지원(강남점 제외 지점)\n• 간식비: 매월 1일 개인 지급\n• 시술·제품 할인: 본인, 가족, 지인 모두 가능\n• 명절 선물 / 유니폼 지급 (지점별 상이)\n• 역세권 사무실 / 맞춤 교육 / 시간외수당', info:''},
+      ]},
+      { label:'PAYCO', qs:[
+        {q:'PAYCO는 언제부터 받나요?', a:'수습 종료 후 정규직 전환 시점부터 매월 50,000원이 지급됩니다.', info:'문의: 주성준 사원'},
+        {q:'퇴사 시 PAYCO는 어떻게 되나요?', a:'퇴사 시 잔여 포인트는 퇴사일 기준 2주 내 소진 필요 (2주 후 삭제)', info:'문의: 주성준 사원'},
+      ]},
+      { label:'특별 복지', qs:[
+        {q:'리프레시 휴가는 누가 받을 수 있나요?', a:'2년 이상 근속자에게 지급됩니다.\n대표원장님 승인이 필수이며 지점별 가능 여부가 다릅니다.', info:'소속 지점 및 부서 스케줄 사전 협의 필수'},
+        {q:'기숙사 입주는 어떻게 하나요?', a:'인사팀에 기숙사 입·퇴거 신청서를 제출하면 공실 확인 후 입주할 수 있습니다.\n방 구성: 투룸 2인 1실', info:'관리: HR팀(입퇴거·비용), 총무팀(계약·시설)\n문의: 주성준 사원'},
+      ]},
+    ]},
+    { id:'기타·결재', icon:'📋', label:'기타·결재', subs:[
+      { label:'그룹웨어', qs:[
+        {q:'그룹웨어는 꼭 가입해야 하나요?', a:'비즈메카(결재·게시판)와 네이버웍스(소통)는 입사 시 필수로 가입해야 합니다.\nEMR은 데이터전략팀에서 계정을 별도 발급합니다.', info:''},
+        {q:'그룹웨어는 어떻게 가입하나요?', a:'채용팀에서 별도로 가입 링크를 안내합니다.', info:'문의: 주성준 사원'},
+      ]},
+      { label:'제증명 발급', qs:[
+        {q:'재직증명서는 어떻게 발급하나요?', a:'비즈메카 > 인사 > 증명서 발급 > 신규 > 재직증명서 신청 > 저장 > 인쇄', info:''},
+        {q:'소득증명원(원천징수영수증, 급여명세서 등)은 어떻게 신청하나요?', a:'비즈메카 > 전자결재 > 기안문 작성 > 양식: 제증명 신청서', info:''},
+        {q:'소득증명원 결재선은?', a:'본인 - 인사팀 담당자 (결재)\n\n리엔장성형외과의원(강남): HR팀 신재인 대리\n리엔장 홍대, 명동, 인천, 목동 / 유픽 명동: HR팀 이지현 주임', info:''},
+      ]},
+      { label:'결재선 안내', qs:[
+        {q:'휴가(연차) 신청 결재선은?', a:'기안자 → 총괄실장/부장\n\n※ 참조자는 따로 설정하지 않습니다.', info:''},
+      ]},
+      { label:'담당자', qs:[
+        {q:'문의는 누구에게 하면 되나요?', a:'• 주성준 사원: 채용, 기숙사, PAYCO, 비자\n• 신재인 주임: 강남점 급여·연차·노무\n• 이지현 주임: 강남점 외 지점 급여·연차·노무', info:'네이버웍스, 유선, 직접 대면으로 연락 가능'},
+      ]},
+    ]},
+    { id:'출장비', icon:'✈️', label:'출장비', subs:[
+      { label:'국내 출장', qs:[
+        {q:'국내 출장비 기준은?', a:'[숙박비 - 실비 정산]\n• 원장: 100,000원 한도\n• 직원: 70,000원 한도\n\n[식대 - 1식]\n• 원장: 12,000원\n• 직원: 9,000원\n\n[교통] 실비 정산 원칙\n\n※ 당일 출장 시 숙박비 미지급', info:'복귀 후 14일 이내 정산 / 증빙자료 제출 필수'},
+      ]},
+      { label:'해외 출장', qs:[
+        {q:'해외 출장 일비 기준은?', a:'[그룹B - 원장]\n• 가(미국/유럽 등): 120,000원\n• 나(일본/중국 등): 100,000원\n• 다(동남아 등): 80,000원\n\n[그룹C - 직원]\n• 가: 100,000원\n• 나: 80,000원\n• 다: 60,000원\n\n※ 숙박·식대·현지 교통비 포함', info:'도착일 14시 이전 도착 시 당일 일비 1/2 지급'},
+      ]},
+      { label:'신청·정산 절차', qs:[
+        {q:'출장 신청·정산 절차는?', a:'① 출장신청서 상신\n   국내: 3영업일 전 / 해외: 7영업일 전\n② 항공·숙박 예약 (Economy·3성급 원칙)\n③ 출장 수행 (영수증 전부 수취)\n④ 복귀 후 14일 이내 정산\n   출장 보고서 + 증빙자료 제출', info:''},
+      ]},
+    ]},
+  ]
+};
+
+// ── CSV 파싱 ──
+function parseCSV(text) {
+  const rows = [];
+  let row = [], cur = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], nx = text[i+1];
+    if (ch === '"') { if (inQ && nx === '"') { cur += '"'; i++; } else inQ = !inQ; }
+    else if (ch === ',' && !inQ) { row.push(cur); cur = ''; }
+    else if ((ch === '\n' || ch === '\r') && !inQ) {
+      if (ch === '\r' && nx === '\n') i++;
+      row.push(cur); cur = ''; rows.push(row); row = [];
+    } else cur += ch;
+  }
+  if (cur || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+
+function buildDataFromCSV(rows) {
+  const catMap = {};
+  const dataRows = rows.filter(r => {
+    if (!r || r.length < 4) return false;
+    const biz = (r[0]||'').trim();
+    return biz.includes('리엔장') || (biz === '' && (r[1]||'').trim() !== '' && (r[1]||'').trim() !== '대카테고리' && (r[1]||'').trim() !== '사업장');
+  });
+  dataRows.forEach(r => {
+    const bigCat  = (r[1]||'').trim();
+    const smallCat= (r[2]||'').trim();
+    const q       = (r[3]||'').trim();
+    const a       = (r[4]||'').trim();
+    const info    = (r[5]||'').trim();
+    const delFlag = (r[6]||'').trim();
+    if (!bigCat || !q || !a || delFlag === '삭제') return;
+    if (!catMap[bigCat]) catMap[bigCat] = { id:bigCat, icon:getIcon(bigCat), label:bigCat, subsMap:{} };
+    const subKey = smallCat || bigCat;
+    if (!catMap[bigCat].subsMap[subKey]) catMap[bigCat].subsMap[subKey] = { label:subKey, qs:[] };
+    catMap[bigCat].subsMap[subKey].qs.push({ q, a, info });
+  });
+  return { cats: Object.values(catMap).map(c => ({ ...c, subs: Object.values(c.subsMap) })) };
+}
+
+// ── 동기화 ──
+async function syncData(silent = false) {
+  if (!SHEET_CSV_URL || SHEET_CSV_URL === 'YOUR_GOOGLE_SHEET_CSV_URL_HERE') {
+    initChat(); return;
+  }
+  const btn = document.getElementById('hdr-sync');
+  btn.classList.add('syncing');
+  btn.innerHTML = '<span class="spinner-inline"></span> 로딩중';
+  btn.disabled = true;
+  try {
+    const res = await fetch(SHEET_CSV_URL, { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const csv = await res.text();
+    const newData = buildDataFromCSV(parseCSV(csv));
+    if (newData.cats.length) {
+      DATA.cats = newData.cats;
+      document.getElementById('err-banner').classList.remove('show');
+      const now = new Date();
+      document.getElementById('hdr-sub').textContent =
+        `마지막 업데이트 ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} · 리엔장 전용`;
+      if (!silent) toast('✅ 최신 데이터로 업데이트되었습니다.');
+    } else throw new Error('데이터 없음');
+  } catch(e) {
+    document.getElementById('err-banner').classList.add('show');
+    document.getElementById('err-msg').textContent = `⚠️ 데이터 로드 실패 — 기본 데이터로 표시 중 (${e.message})`;
+    if (!silent) toast('⚠️ 데이터를 불러오지 못했습니다.');
+  }
+  btn.classList.remove('syncing');
+  btn.innerHTML = '🔄 새로고침';
+  btn.disabled = false;
+  initChat();
+}
+async function manualSync(){ await syncData(false); }
+
+// ── 챗봇 UI ──
+let chatState = 'cats', curCatIdx = null;
+function $m(){ return document.getElementById('msgs'); }
+function addBot(html){
+  const d = document.createElement('div'); d.className='msg-bot';
+  d.innerHTML=`<div class="bot-av">🏥</div><div class="bot-bbl">${html}</div>`;
+  $m().appendChild(d); $m().scrollTop=$m().scrollHeight;
+}
+function addUser(t){
+  const d=document.createElement('div'); d.className='msg-user';
+  d.innerHTML=`<div class="user-bbl">${t}</div>`;
+  $m().appendChild(d); $m().scrollTop=$m().scrollHeight;
+}
+function addWidget(html){
+  const d=document.createElement('div'); d.className='widget'; d.innerHTML=html;
+  $m().appendChild(d); $m().scrollTop=$m().scrollHeight;
+}
+function showCats(){
+  chatState='cats';
+  let g='<div class="cat-grid">';
+  DATA.cats.forEach((c,i)=>{ g+=`<button class="cat-btn" onclick="selectCat(${i})">${c.icon} ${c.label}</button>`; });
+  g+='</div>'; addWidget(g);
+}
+function selectCat(i){
+  curCatIdx=i; chatState='qs';
+  const cat=DATA.cats[i];
+  addUser(`${cat.icon} ${cat.label}`);
+  const allQs=(cat.subs||[]).flatMap(s=>s.qs.map(q=>({q,subLabel:s.label})));
+  cat._flatQs=allQs;
+  addBot(`<b>${cat.label}</b> 관련 자주 묻는 질문입니다:`);
+  let html=`<button class="back-btn" onclick="showCats()">← 카테고리로</button><div class="q-list" style="margin-top:7px">`;
+  allQs.forEach((item,idx)=>{ html+=`<button class="q-btn" onclick="selectQ(${i},${idx})">${item.q.q}</button>`; });
+  html+='</div>'; addWidget(html);
+}
+function selectQ(ci,idx){
+  chatState='ans';
+  const cat=DATA.cats[ci], item=cat._flatQs[idx], q=item.q;
+  addUser(q.q);
+  let aHtml=`<div class="answer-box">${q.a.replace(/\n/g,'<br>')}</div>`;
+  if(q.info) aHtml+=`<div class="info-box">ℹ️ ${q.info.replace(/\n/g,'<br>')}</div>`;
+  addBot(aHtml);
+  addWidget(`<div class="nav-btns"><button class="back-btn" onclick="selectCat(${ci})">← 다른 질문 보기</button><button class="back-btn" onclick="showCats()">🏠 카테고리로</button></div>`);
+}
+function initChat(){
+  $m().innerHTML=''; chatState='cats'; curCatIdx=null;
+  addBot(`안녕하세요! <b>리엔장 병원 HR 도우미</b>입니다. 👋<br>아래 카테고리에서 궁금한 항목을 선택해 주세요.`);
+  showCats();
+}
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2800);
+}
+
+// ── 초기화 ──
+(async function(){ initChat(); await syncData(true); })();
+</script>
+</body>
+</html>
