@@ -35,6 +35,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Pretendard,sans-ser
 .q-list{display:flex;flex-direction:column;gap:7px;padding:4px 0;}
 .q-btn{padding:9px 13px;border:1px solid var(--border);border-radius:9px;background:#fff;cursor:pointer;font-size:13px;color:var(--text);text-align:left;transition:all 0.15s;line-height:1.45;}
 .q-btn:hover{background:var(--teal-light);border-color:var(--teal);}
+.sub-btn{display:flex;align-items:center;justify-content:space-between;}
+.sub-cnt{font-size:11px;color:#64748b;background:#f1f5f9;border-radius:20px;padding:2px 8px;flex-shrink:0;}
 .nav-btns{display:flex;gap:7px;margin-top:2px;}
 .back-btn{padding:6px 13px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:12px;color:#64748b;display:inline-flex;align-items:center;gap:4px;}
 .back-btn:hover{background:#f1f5f9;}
@@ -245,34 +247,66 @@ function addWidget(html){
   const d=document.createElement('div'); d.className='widget'; d.innerHTML=html;
   $m().appendChild(d); $m().scrollTop=$m().scrollHeight;
 }
+
+// ── 1단계: 대카테고리 ──
 function showCats(){
   chatState='cats';
   let g='<div class="cat-grid">';
   DATA.cats.forEach((c,i)=>{ g+=`<button class="cat-btn" onclick="selectCat(${i})">${c.icon} ${c.label}</button>`; });
   g+='</div>'; addWidget(g);
 }
-function selectCat(i){
-  curCatIdx=i; chatState='qs';
-  const cat=DATA.cats[i];
+
+// ── 2단계: 소카테고리 ──
+function selectCat(ci){
+  chatState='subs';
+  const cat=DATA.cats[ci];
   addUser(`${cat.icon} ${cat.label}`);
-  const allQs=(cat.subs||[]).flatMap(s=>s.qs.map(q=>({q,subLabel:s.label})));
-  cat._flatQs=allQs;
-  addBot(`<b>${cat.label}</b> 관련 자주 묻는 질문입니다:`);
+  addBot(`<b>${cat.label}</b>의 세부 항목을 선택해 주세요:`);
   let html=`<button class="back-btn" onclick="showCats()">← 카테고리로</button><div class="q-list" style="margin-top:7px">`;
-  allQs.forEach((item,idx)=>{ html+=`<button class="q-btn" onclick="selectQ(${i},${idx})">${item.q.q}</button>`; });
+  (cat.subs||[]).forEach((sub,si)=>{
+    // 소카테고리에 속한 질문 수 표시
+    const cnt=sub.qs.length;
+    html+=`<button class="q-btn sub-btn" onclick="selectSub(${ci},${si})">
+      <span>${sub.label}</span>
+      <span class="sub-cnt">${cnt}개</span>
+    </button>`;
+  });
   html+='</div>'; addWidget(html);
 }
-function selectQ(ci,idx){
+
+// ── 3단계: 질문 목록 ──
+function selectSub(ci,si){
+  chatState='qs';
+  const cat=DATA.cats[ci], sub=cat.subs[si];
+  addUser(sub.label);
+  addBot(`<b>${sub.label}</b> 관련 자주 묻는 질문입니다:`);
+  let html=`<div class="nav-btns" style="margin-bottom:8px">
+    <button class="back-btn" onclick="showCats()">🏠 카테고리로</button>
+    <button class="back-btn" onclick="selectCat(${ci})">← ${cat.label}으로</button>
+  </div><div class="q-list">`;
+  sub.qs.forEach((q,qi)=>{
+    html+=`<button class="q-btn" onclick="selectQ(${ci},${si},${qi})">${q.q}</button>`;
+  });
+  html+='</div>'; addWidget(html);
+}
+
+// ── 4단계: 답변 ──
+function selectQ(ci,si,qi){
   chatState='ans';
-  const cat=DATA.cats[ci], item=cat._flatQs[idx], q=item.q;
+  const cat=DATA.cats[ci], sub=cat.subs[si], q=sub.qs[qi];
   addUser(q.q);
   let aHtml=`<div class="answer-box">${q.a.replace(/\n/g,'<br>')}</div>`;
   if(q.info) aHtml+=`<div class="info-box">ℹ️ ${q.info.replace(/\n/g,'<br>')}</div>`;
   addBot(aHtml);
-  addWidget(`<div class="nav-btns"><button class="back-btn" onclick="selectCat(${ci})">← 다른 질문 보기</button><button class="back-btn" onclick="showCats()">🏠 카테고리로</button></div>`);
+  addWidget(`<div class="nav-btns">
+    <button class="back-btn" onclick="selectSub(${ci},${si})">← 다른 질문 보기</button>
+    <button class="back-btn" onclick="selectCat(${ci})">↑ ${cat.label}</button>
+    <button class="back-btn" onclick="showCats()">🏠 처음으로</button>
+  </div>`);
 }
+
 function initChat(){
-  $m().innerHTML=''; chatState='cats'; curCatIdx=null;
+  $m().innerHTML=''; chatState='cats';
   addBot(`안녕하세요! <b>리엔장 병원 HR 도우미</b>입니다. 👋<br>아래 카테고리에서 궁금한 항목을 선택해 주세요.`);
   showCats();
 }
