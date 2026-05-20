@@ -70,10 +70,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Pretendard,sans-ser
 
 <script>
 // ════════════════════════════════════════════════════════
-// ★ 구글 시트 CSV URL — 여기만 바꾸면 됩니다 ★
-// 구글 시트 → 파일 → 공유 → 웹에 게시 → CSV → 링크 복사
+// ★ Apps Script 웹앱 URL — 여기만 바꾸면 됩니다 ★
 // ════════════════════════════════════════════════════════
-const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSGL2z1wxfOaQydI0lxH_wKf8k5vjd0DK-2ULZFmyLYOvscwGFyjibNyQMAIEZzeg/pub?gid=776942554&single=true&output=csv';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzmYrZZqdNxofFPqQ42uCnwO8vCaz_Nbss0YNa4kZjSEK98IUVRNB7ljl14wrG7x2iIfQ/exec';
 
 // ── 아이콘 매핑 ──
 const ICON_MAP = {
@@ -168,37 +167,26 @@ let DATA = {
   ]
 };
 
-// ── CSV 파싱 ──
-function parseCSV(text) {
-  const rows = [];
-  let row = [], cur = '', inQ = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i], nx = text[i+1];
-    if (ch === '"') { if (inQ && nx === '"') { cur += '"'; i++; } else inQ = !inQ; }
-    else if (ch === ',' && !inQ) { row.push(cur); cur = ''; }
-    else if ((ch === '\n' || ch === '\r') && !inQ) {
-      if (ch === '\r' && nx === '\n') i++;
-      row.push(cur); cur = ''; rows.push(row); row = [];
-    } else cur += ch;
-  }
-  if (cur || row.length) { row.push(cur); rows.push(row); }
-  return rows;
-}
-
-function buildDataFromCSV(rows) {
+// ── Apps Script JSON → DATA 변환 ──
+// Apps Script가 반환하는 형식: [[행1col1, 행1col2, ...], [행2col1, ...], ...]
+// 컬럼 순서: 사업장(0) | 대카테고리(1) | 소카테고리(2) | 질문(3) | 답변(4) | 더알아보기(5) | 삭제여부(6)
+function buildDataFromJSON(rows) {
   const catMap = {};
   const dataRows = rows.filter(r => {
     if (!r || r.length < 4) return false;
-    const biz = (r[0]||'').trim();
-    return biz.includes('리엔장') || (biz === '' && (r[1]||'').trim() !== '' && (r[1]||'').trim() !== '대카테고리' && (r[1]||'').trim() !== '사업장');
+    const biz = String(r[0]||'').trim();
+    const big = String(r[1]||'').trim();
+    // 헤더행 제외, 리엔장 데이터만
+    return biz.includes('리엔장') ||
+      (biz === '' && big !== '' && big !== '대카테고리' && big !== '사업장');
   });
   dataRows.forEach(r => {
-    const bigCat  = (r[1]||'').trim();
-    const smallCat= (r[2]||'').trim();
-    const q       = (r[3]||'').trim();
-    const a       = (r[4]||'').trim();
-    const info    = (r[5]||'').trim();
-    const delFlag = (r[6]||'').trim();
+    const bigCat  = String(r[1]||'').trim();
+    const smallCat= String(r[2]||'').trim();
+    const q       = String(r[3]||'').trim();
+    const a       = String(r[4]||'').trim();
+    const info    = String(r[5]||'').trim();
+    const delFlag = String(r[6]||'').trim();
     if (!bigCat || !q || !a || delFlag === '삭제') return;
     if (!catMap[bigCat]) catMap[bigCat] = { id:bigCat, icon:getIcon(bigCat), label:bigCat, subsMap:{} };
     const subKey = smallCat || bigCat;
@@ -210,18 +198,16 @@ function buildDataFromCSV(rows) {
 
 // ── 동기화 ──
 async function syncData(silent = false) {
-  if (!SHEET_CSV_URL || SHEET_CSV_URL === 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSGL2z1wxfOaQydI0lxH_wKf8k5vjd0DK-2ULZFmyLYOvscwGFyjibNyQMAIEZzeg/pub?gid=776942554&single=true&output=csv') {
-    initChat(); return;
-  }
   const btn = document.getElementById('hdr-sync');
   btn.classList.add('syncing');
   btn.innerHTML = '<span class="spinner-inline"></span> 로딩중';
   btn.disabled = true;
   try {
-    const res = await fetch(SHEET_CSV_URL, { cache: 'no-cache' });
+    const res = await fetch(APPS_SCRIPT_URL, { cache: 'no-cache' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const csv = await res.text();
-    const newData = buildDataFromCSV(parseCSV(csv));
+    const rows = await res.json();
+    if (!Array.isArray(rows)) throw new Error('데이터 형식 오류');
+    const newData = buildDataFromJSON(rows);
     if (newData.cats.length) {
       DATA.cats = newData.cats;
       document.getElementById('err-banner').classList.remove('show');
